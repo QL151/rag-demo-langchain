@@ -1,0 +1,12 @@
+services:
+  rag-demo:
+    build: .
+    container_name: rag-demo
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # 数据持久化：容器重建后已入库的文档和会话记录不会丢
+      - ./data:/app/data
+    restart: unless-stopped

@@ -1,0 +1,17 @@
+# 本次验证的框架依赖版本
+langchain==1.4.3
+langchain-core==1.6.6
+langchain-openai==1.6.7
+langchain-community==0.4.2
+langchain-text-splitters==1.1.2
+langgraph==1.2.12
+rank-bm25==0.2.2
+openai==3.22.1
+fastapi==0.142.2
+uvicorn==0.54.0
+python-multipart==0.0.32
+python-dotenv==1.2.4
+pypdf==6.19.0
+httpx==0.28.1
+socksio==1.0.0
+httpx2==2.13.1

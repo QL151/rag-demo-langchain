@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>企业知识库智能问答</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --line: #e5e7eb; --text: #1f2328;
+    --sub: #6b7280; --brand: #2563eb; --brand-soft: #eff6ff; --ok: #16a34a;
+    --warn: #b45309; --warn-soft: #fffbeb; --danger: #b91c1c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    font-size: 15px; line-height: 1.65;
+  }
+  header {
+    padding: 16px 24px; background: var(--card); border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { margin: 0 0 6px; font-size: 18px; }
+  header h1 span { font-size: 12px; color: var(--sub); font-weight: normal; margin-left: 6px; }
+  #status { font-size: 13px; color: var(--sub); }
+  #status b { color: var(--text); font-weight: 600; }
+  #warnings { margin: 6px 0 0; font-size: 12px; color: var(--warn); }
+  main {
+    max-width: 1180px; margin: 20px auto; padding: 0 16px;
+    display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start;
+  }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 12px; font-size: 15px; }
+  .uploader { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  input[type="file"] { font-size: 13px; max-width: 100%; }
+  input[type="text"], select {
+    padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px;
+    font-size: 13px; font-family: inherit;
+  }
+  button {
+    background: var(--brand); color: #fff; border: 0; border-radius: 8px;
+    padding: 8px 14px; font-size: 14px; cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.ghost { background: transparent; color: var(--sub); border: 1px solid var(--line); padding: 4px 8px; font-size: 12px; }
+  .hint { font-size: 12px; color: var(--sub); margin: 10px 0 0; }
+  ul.docs { list-style: none; margin: 12px 0 0; padding: 0; max-height: 240px; overflow-y: auto; }
+  ul.docs li {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; font-size: 13px;
+  }
+  ul.docs .meta { color: var(--sub); font-size: 12px; }
+  table.stats { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.stats td { padding: 3px 0; vertical-align: top; }
+  table.stats td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  table.stats tr.sep td { border-top: 1px dashed var(--line); padding-top: 8px; }
+  .chat { min-height: 260px; max-height: 52vh; overflow-y: auto; padding: 4px 2px; }
+  .empty { color: var(--sub); font-size: 13px; padding: 20px 4px; }
+  .msg { margin-bottom: 14px; }
+  .msg .who { font-size: 12px; color: var(--sub); margin-bottom: 4px; }
+  .msg .bubble {
+    display: inline-block; max-width: 100%; padding: 10px 12px; border-radius: 10px;
+    background: var(--brand-soft); white-space: pre-wrap; word-break: break-word;
+  }
+  .msg.user .bubble { background: #f1f3f5; }
+  .msg.refused .bubble { background: var(--warn-soft); border: 1px solid #fde68a; }
+  .badges { margin: 6px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge {
+    font-size: 11px; padding: 1px 7px; border-radius: 999px;
+    background: #f1f3f5; color: var(--sub); border: 1px solid var(--line);
+  }
+  .badge.ok { background: #ecfdf5; color: var(--ok); border-color: #a7f3d0; }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); border-color: #fde68a; }
+  .cites { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .cite {
+    font-size: 12px; color: var(--sub); border-left: 3px solid var(--brand);
+    padding: 4px 8px; background: #fafbfc; border-radius: 0 6px 6px 0;
+  }
+  .cite b { color: var(--text); }
+  .cite .scores { color: var(--sub); font-size: 11px; }
+  .ask { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .ask input#question {
+    flex: 1; min-width: 220px; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 8px; font-size: 14px; font-family: inherit;
+  }
+  .ask input#question:focus { outline: 2px solid var(--brand-soft); border-color: var(--brand); }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .err { color: var(--danger); font-size: 13px; }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>企业知识库智能问答 <span>混合检索 + 精排 + 引用溯源 + 成本计量</span></h1>
+  <div id="status">正在读取后端状态…</div>
+  <div id="warnings"></div>
+</header>
+
+<main>
+  <div>
+    <section class="card">
+      <h2>1. 上传文档</h2>
+      <div class="uploader">
+        <input type="file" id="file" accept=".txt,.md,.markdown,.pdf,.csv,.json" />
+        <input type="text" id="dept" placeholder="部门（如 product）" size="12" />
+        <button id="upload">上传并入库</button>
+      </div>
+      <p class="hint">
+        支持 txt / md / pdf。<b>重复上传不会重复向量化</b>：内容没变整篇跳过，
+        只重新计算改动过的片段。
+      </p>
+      <ul class="docs" id="docs"></ul>
+      <div class="row" style="margin-top:12px">
+        <button class="ghost" id="clear">清空对话</button>
+        <span class="hint" id="session"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2. 运行统计</h2>
+      <table class="stats" id="stats">
+        <tr><td colspan="2" class="meta" style="color:var(--sub)">加载中…</td></tr>
+      </table>
+      <p class="hint">
+        这些数字来自 <span class="mono">/api/stats</span>：token 与费用是每次调用后落库的，
+        缓存命中率 = 命中次数 / 总提问次数。
+      </p>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>3. 提问</h2>
+    <div class="chat" id="chat">
+      <div class="empty">先上传一份文档，然后提问试试。例如：「专业版多少钱？」</div>
+    </div>
+    <div class="ask">
+      <input id="question" placeholder="输入你的问题，回车发送…" autocomplete="off" />
+      <select id="askDept" title="只看某个部门的文档">
+        <option value="">全部部门</option>
+      </select>
+      <button id="send">发送</button>
+    </div>
+    <p class="hint">
+      回答基于检索到的原文片段生成，并标注 [1][2] 引用来源。
+      每条引用会显示<b>向量分 / 精排分 / 命中通道</b> —— 这是"为什么给我这个答案"的答案。
+    </p>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+const sessionId = localStorage.getItem("rag_session_id")
+  || ("web-" + Math.random().toString(36).slice(2, 10));
+localStorage.setItem("rag_session_id", sessionId);
+$("session").textContent = "会话：" + sessionId;
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail || detail; } catch (e) {}
+    throw new Error(detail);
+  }
+  return res;
+}
+
+/* ---------------- 后端状态 ---------------- */
+async function refreshHealth() {
+  try {
+    const data = await (await api("/api/health")).json();
+    const r = data.retrieval || {};
+    const llmText = data.llm_ready ? data.llm_model : "未配置（仅检索）";
+    $("status").innerHTML =
+      `向量库 <b>${data.vector_backend}</b> · 向量化 <b>${data.embedding_model}</b> · `
+      + `文档 <b>${data.documents}</b> 篇 / <b>${data.chunks}</b> 段 · 生成模型 <b>${llmText}</b><br>`
+      + `检索：混合 <b>${r.hybrid ? "开" : "关"}</b>（召回 ${r.retrieve_k} 条）· `
+      + `精排 <b>${r.rerank_ready ? r.rerank_model : (r.rerank_enabled ? "未配 Key（已降级）" : "关")}</b> · `
+      + `多轮改写 <b>${r.rewrite_enabled ? "开" : "关"}</b> · `
+      + `拒答阈值 <b>${r.rerank_ready ? r.min_rerank_score : r.min_vector_score}</b>`;
+    const warnings = data.warnings || [];
+    $("warnings").innerHTML = warnings.map((w) => "⚠ " + w).join("<br>");
+  } catch (err) {
+    $("status").innerHTML = `<span class="err">后端未启动或不可用：${err.message}</span>`;
+  }
+}
+
+/* ---------------- 文档列表 ---------------- */
+async function refreshDocs() {
+  const docs = await (await api("/api/documents")).json();
+  const list = $("docs");
+  const deptSelect = $("askDept");
+  list.innerHTML = "";
+  deptSelect.length = 1;                       // 只留"全部部门"
+  if (!docs.length) {
+    list.innerHTML = `<li style="border:0;padding-left:0" class="meta">还没有文档，先上传一份吧。</li>`;
+    return;
+  }
+  const depts = new Set();
+  for (const doc of docs) {
+    const li = document.createElement("li");
+    const dept = doc.dept ? ` · 部门 ${doc.dept}` : "";
+    li.innerHTML = `<span>${doc.source}<br><span class="meta">${doc.chunks} 段 · ${doc.chars} 字${dept}</span></span>`;
+    const del = document.createElement("button");
+    del.className = "ghost";
+    del.textContent = "删除";
+    del.onclick = async () => {
+      await api("/api/documents/" + encodeURIComponent(doc.source), { method: "DELETE" });
+      await refreshDocs(); await refreshHealth(); await refreshStats();
+    };
+    li.appendChild(del);
+    list.appendChild(li);
+    if (doc.dept) depts.add(doc.dept);
+  }
+  for (const dept of depts) {
+    const option = document.createElement("option");
+    option.value = dept; option.textContent = dept;
+    deptSelect.appendChild(option);
+  }
+}
+
+/* ---------------- 运行统计 ---------------- */
+function statRow(label, value, sep) {
+  return `<tr class="${sep ? "sep" : ""}"><td>${label}</td><td>${value}</td></tr>`;
+}
+
+async function refreshStats() {
+  try {
+    const data = await (await api("/api/stats")).json();
+    const u = data.usage, c = data.cache, k = data.knowledge;
+    $("stats").innerHTML =
+      statRow("知识库", `${k.documents} 篇 / ${k.chunks} 段`) +
+      statRow("部门", (k.depts || []).join("、") || "未标注") +
+      statRow(`近 ${u.window_days} 天调用`, `${u.calls} 次`, true) +
+      statRow("token", `${u.prompt_tokens} + ${u.completion_tokens}`) +
+      statRow("费用", `￥${(u.cost_yuan || 0).toFixed(6)}`) +
+      statRow("单次均价", `￥${(u.avg_cost_per_call_yuan || 0).toFixed(6)}`) +
+      statRow("P95 延迟", `${u.p95_latency_ms || 0} ms`) +
+      statRow("P95 首字", `${u.p95_first_token_ms || 0} ms`) +
+      statRow("缓存命中率", `${((c.hit_rate || 0) * 100).toFixed(0)}%（${c.entries} 条）`, true) +
+      statRow("Trace", `内存 ${data.trace.in_memory} 条`);
+  } catch (err) {
+    $("stats").innerHTML = `<tr><td colspan="2" class="err">统计不可用：${err.message}</td></tr>`;
+  }
+}
+
+/* ---------------- 上传 ---------------- */
+$("upload").onclick = async () => {
+  const file = $("file").files[0];
+  if (!file) { alert("请先选择一个文件"); return; }
+  const button = $("upload");
+  button.disabled = true; button.textContent = "入库中…";
+  try {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("dept", $("dept").value.trim());
+    const result = await (await api("/api/documents", { method: "POST", body: form })).json();
+    const detail = result.skipped
+      ? `内容未变化，整篇跳过（0 次向量化调用）`
+      : `切分为 ${result.chunks} 段：复用旧向量 ${result.reused_chunks} 段，新向量化 ${result.embedded_chunks} 段`;
+    addBubble("assistant", `已入库《${result.source}》，${detail}。`, { badges: ["增量入库"] });
+    await refreshDocs(); await refreshHealth(); await refreshStats();
+  } catch (err) {
+    addBubble("assistant", "上传失败：" + err.message);
+  } finally {
+    button.disabled = false; button.textContent = "上传并入库";
+  }
+};
+
+/* ---------------- 对话渲染 ---------------- */
+async function loadHistory() {
+  try {
+    const res = await (await api("/api/sessions/" + encodeURIComponent(sessionId) + "/messages")).json();
+    if (!res.length) return;
+    const chat = $("chat");
+    chat.innerHTML = "";
+    for (const m of res) {
+      addBubble(m.role === "user" ? "user" : "assistant", m.content);
+    }
+    const sep = document.createElement("div");
+    sep.className = "empty";
+    sep.textContent = "—— 以上是上次的对话 ——";
+    chat.appendChild(sep);
+  } catch (err) {
+    console.error("加载历史失败：", err.message);
+  }
+}
+
+function addBubble(role, text, options) {
+  const chat = $("chat");
+  const empty = chat.querySelector(".empty");
+  if (empty) empty.remove();
+  const opts = options || {};
+  const wrap = document.createElement("div");
+  wrap.className = "msg " + (role === "user" ? "user" : "assistant") + (opts.refused ? " refused" : "");
+  const who = document.createElement("div");
+  who.className = "who";
+  who.textContent = role === "user" ? "我" : "助手";
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  bubble.textContent = text;
+  wrap.appendChild(who); wrap.appendChild(bubble);
+  if (opts.badges && opts.badges.length) {
+    const box = document.createElement("div");
+    box.className = "badges";
+    for (const badge of opts.badges) {
+      const span = document.createElement("span");
+      span.className = "badge " + (opts.badgeKind || "");
+      span.textContent = badge;
+      box.appendChild(span);
+    }
+    wrap.appendChild(box);
+  }
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+  return { wrap, bubble };
+}
+
+function renderCitations(wrap, citations) {
+  if (!citations || !citations.length) return;
+  const box = document.createElement("div");
+  box.className = "cites";
+  for (const c of citations) {
+    const item = document.createElement("div");
+    item.className = "cite";
+    const channels = (c.matched_by || []).join("+") || "-";
+    const rerank = c.rerank_score === null || c.rerank_score === undefined ? "未启用" : c.rerank_score;
+    const rank = c.rerank_rank ? ` · 精排序 #${c.rerank_rank}` : "";
+    const dept = c.dept ? ` · 部门 ${c.dept}` : "";
+    item.innerHTML =
+      `<b>[${c.index}] ${c.source}</b>（第 ${c.chunk_index + 1} 段${dept}）<br>`
+      + `<span class="scores">最终 ${c.score} · 向量 ${c.vector_score} · 精排 ${rerank}${rank} · 通道 [${channels}]</span><br>`
+      + `${c.snippet}`;
+    box.appendChild(item);
+  }
+  wrap.appendChild(box);
+}
+
+/* ---------------- 提问（SSE 流式） ---------------- */
+let busy = false;
+
+function metaBadges(meta) {
+  const badges = [];
+  if (meta.cache === "exact") badges.push("缓存命中（精确）");
+  else if (meta.cache === "semantic") badges.push("缓存命中（语义）");
+  if (meta.rerank_mode === "cross-encoder") badges.push("cross-encoder 精排");
+  else if (meta.rerank_mode === "listwise") badges.push("listwise 精排");
+  if (meta.rewritten_query) badges.push("已改写问句");
+  badges.push(`${meta.latency_ms} ms`);
+  if (meta.usage && meta.usage.cost_yuan !== undefined) badges.push(`￥${meta.usage.cost_yuan}`);
+  return badges;
+}
+
+async function send() {
+  const question = $("question").value.trim();
+  if (!question || busy) return;
+  const dept = $("askDept").value;
+  busy = true; $("send").disabled = true; $("question").value = "";
+  addBubble("user", question);
+  const { wrap, bubble } = addBubble("assistant", "…");
+  let answer = "";
+  let badgesBox = null;
+  let refused = false;
+
+  try {
+    const res = await fetch("/api/chat/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, question, dept: dept || null }),
+    });
+    if (!res.ok || !res.body) throw new Error("请求失败：" + res.status);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split("\n\n");
+      buffer = chunks.pop();
+      for (const chunk of chunks) {
+        const line = chunk.split("\n").find((l) => l.startsWith("data:"));
+        if (!line) continue;
+        let event;
+        try { event = JSON.parse(line.slice(5).trim()); } catch (e) { continue; }
+
+        if (event.type === "meta") {
+          wrap.dataset.traceId = event.trace_id;
+          if (event.refused) { refused = true; wrap.classList.add("refused"); }
+          const box = document.createElement("div");
+          box.className = "badges";
+          for (const text of metaBadges(event)) {
+            const span = document.createElement("span");
+            span.className = "badge" + (event.cache !== "miss" ? " ok" : (event.refused ? " warn" : ""));
+            span.textContent = text;
+            box.appendChild(span);
+          }
+          wrap.appendChild(box);
+          badgesBox = box;
+          if (event.rewritten_query) {
+            const span = document.createElement("span");
+            span.className = "badge mono";
+            span.textContent = "检索用：" + event.rewritten_query;
+            box.appendChild(span);
+          }
+        } else if (event.type === "citations") {
+          renderCitations(wrap, event.citations);
+        } else if (event.type === "delta") {
+          answer += event.text;
+          bubble.textContent = answer;
+          $("chat").scrollTop = $("chat").scrollHeight;
+        } else if (event.type === "error") {
+          bubble.textContent = (answer || "") + "\n[出错] " + event.message;
+        }
+      }
+    }
+    if (!answer) bubble.textContent = refused ? "（已拒答）" : "（没有返回内容）";
+    if (refused) bubble.textContent = answer;
+  } catch (err) {
+    bubble.textContent = "请求失败：" + err.message;
+  } finally {
+    busy = false; $("send").disabled = false; $("question").focus();
+    refreshStats();
+  }
+}
+
+$("send").onclick = send;
+$("question").addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+$("clear").onclick = async () => {
+  await api("/api/sessions/" + encodeURIComponent(sessionId), { method: "DELETE" });
+  $("chat").innerHTML = '<div class="empty">对话已清空，继续提问吧。</div>';
+};
+
+refreshHealth();
+refreshDocs();
+refreshStats();
+loadHistory();
+</script>
+</body>
+</html>

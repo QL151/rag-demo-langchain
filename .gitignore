@@ -1,0 +1,33 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# ---- 环境变量：绝对不能提交（里面有 API Key）----
+.env
+
+# ---- 运行期数据 ----
+data/app.db
+data/app.db-wal
+data/app.db-shm
+data/chroma/
+data/memory_index.json
+data/memory_index.tmp
+data/uploads/
+data/traces/
+
+# ---- 评测产物：报告可以复制出来归档，但不该进仓库 ----
+data/_eval/
+
+# ---- 自己收集的语料：体积大、可能有版权，不要提交 ----
+data/corpus/
+
+# ---- 编辑器 / 系统 ----
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
